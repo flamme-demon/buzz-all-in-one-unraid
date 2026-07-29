@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Initialisation du conteneur all-in-one : utilisateur, arborescence /config,
+# secrets persistants et cluster Postgres. Idempotent — rejoué à chaque
+# démarrage, il ne recrée que ce qui manque.
+set -euo pipefail
+
+PUID="${PUID:-99}"
+PGID="${PGID:-100}"
+CONFIG_DIR=/config
+SECRETS_FILE="${CONFIG_DIR}/secrets.env"
+
+log() { printf '[buzz-aio][init] %s\n' "$*"; }
+
+# ─── Utilisateur ────────────────────────────────────────────────────────────
+# Unraid mappe les partages sur nobody:users (99:100) ; on aligne l'utilisateur
+# interne dessus pour que les fichiers d'appdata restent lisibles depuis l'hôte.
+if ! getent group "${PGID}" >/dev/null; then
+    groupadd --gid "${PGID}" buzz
+fi
+BUZZ_GROUP="$(getent group "${PGID}" | cut -d: -f1)"
+
+if ! getent passwd "${PUID}" >/dev/null; then
+    useradd --uid "${PUID}" --gid "${PGID}" --home-dir "${CONFIG_DIR}" \
+            --no-create-home --shell /usr/sbin/nologin buzz
+fi
+BUZZ_USER="$(getent passwd "${PUID}" | cut -d: -f1)"
+log "utilisateur ${BUZZ_USER}:${BUZZ_GROUP} (${PUID}:${PGID})"
+
+# ─── Arborescence ───────────────────────────────────────────────────────────
+install -d -o "${PUID}" -g "${PGID}" -m 0755 \
+    "${CONFIG_DIR}" \
+    "${CONFIG_DIR}/redis" \
+    "${CONFIG_DIR}/minio" \
+    "${CONFIG_DIR}/git" \
+    "${CONFIG_DIR}/git-packs" \
+    "${CONFIG_DIR}/relay" \
+    "${CONFIG_DIR}/logs"
+# Postgres refuse un PGDATA dont les droits sont plus larges que 0700.
+install -d -o "${PUID}" -g "${PGID}" -m 0700 "${CONFIG_DIR}/postgres"
+install -d -o "${PUID}" -g "${PGID}" -m 0755 /run/postgresql
+
+# ─── Secrets ────────────────────────────────────────────────────────────────
+# Générés une seule fois puis relus. BUZZ_RELAY_PRIVATE_KEY est l'identité
+# Nostr du relay : la régénérer change l'identité vue par les clients, d'où la
+# persistance dans /config plutôt qu'un tirage à chaque démarrage.
+if [[ ! -f "${SECRETS_FILE}" ]]; then
+    log "premier démarrage — génération des secrets dans ${SECRETS_FILE}"
+    umask 077
+    cat > "${SECRETS_FILE}" <<EOF
+# Généré automatiquement au premier démarrage du conteneur Buzz all-in-one.
+# Sauvegardez ce fichier : BUZZ_RELAY_PRIVATE_KEY est l'identité Nostr du relay.
+BUZZ_RELAY_PRIVATE_KEY=$(openssl rand -hex 32)
+BUZZ_GIT_HOOK_HMAC_SECRET=$(openssl rand -hex 32)
+POSTGRES_PASSWORD=$(openssl rand -hex 24)
+MINIO_ROOT_USER=buzz-$(openssl rand -hex 6)
+MINIO_ROOT_PASSWORD=$(openssl rand -hex 24)
+EOF
+    chown "${PUID}:${PGID}" "${SECRETS_FILE}"
+    chmod 0600 "${SECRETS_FILE}"
+fi
+# shellcheck disable=SC1090
+source "${SECRETS_FILE}"
+
+# ─── Cluster Postgres ───────────────────────────────────────────────────────
+if [[ ! -s "${CONFIG_DIR}/postgres/PG_VERSION" ]]; then
+    log "initialisation du cluster Postgres ${PG_MAJOR}"
+    PWFILE="$(mktemp)"
+    printf '%s' "${POSTGRES_PASSWORD}" > "${PWFILE}"
+    chown "${PUID}:${PGID}" "${PWFILE}"
+
+    s6-setuidgid "${BUZZ_USER}" initdb \
+        --pgdata="${CONFIG_DIR}/postgres" \
+        --username=buzz \
+        --pwfile="${PWFILE}" \
+        --auth-local=trust \
+        --auth-host=scram-sha-256 \
+        --encoding=UTF8 \
+        --locale=C.UTF-8 >/dev/null
+    rm -f "${PWFILE}"
+
+    # Le relay se connecte en TCP sur la loopback du conteneur ; on ne veut pas
+    # d'écoute externe, le seul port publié doit rester celui de l'app.
+    cat >> "${CONFIG_DIR}/postgres/postgresql.conf" <<'EOF'
+
+# ── Réglages buzz-aio ──────────────────────────────────────────────────────
+listen_addresses = 'localhost'
+unix_socket_directories = '/run/postgresql'
+EOF
+
+    log "création de la base 'buzz'"
+    s6-setuidgid "${BUZZ_USER}" pg_ctl \
+        --pgdata="${CONFIG_DIR}/postgres" \
+        --options="-c listen_addresses=''" \
+        --wait --silent start
+    s6-setuidgid "${BUZZ_USER}" createdb --host=/run/postgresql --username=buzz buzz
+    s6-setuidgid "${BUZZ_USER}" pg_ctl \
+        --pgdata="${CONFIG_DIR}/postgres" \
+        --wait --silent --mode=fast stop
+    log "cluster Postgres prêt"
+fi
+
+# ─── Redis ──────────────────────────────────────────────────────────────────
+if [[ ! -f "${CONFIG_DIR}/redis/redis.conf" ]]; then
+    cat > "${CONFIG_DIR}/redis/redis.conf" <<'EOF'
+# Redis sert de bus pub/sub et de compteur de présence pour le relay. Les
+# données sont reconstructibles, mais un snapshot évite de repartir de zéro
+# après un redémarrage d'Unraid.
+bind 127.0.0.1
+port 6379
+dir /config/redis
+save 900 1
+appendonly no
+maxmemory-policy noeviction
+EOF
+    chown "${PUID}:${PGID}" "${CONFIG_DIR}/redis/redis.conf"
+fi
+
+log "initialisation terminée"

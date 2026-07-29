@@ -1,0 +1,27 @@
+#!/command/with-contenv bash
+# Crée le bucket média une fois MinIO accepté les connexions. s6-rc garantit que
+# le service minio est *lancé*, pas qu'il est *prêt* : d'où l'attente active.
+set -euo pipefail
+source /usr/local/bin/buzz-aio-env
+
+BUCKET="${BUZZ_S3_BUCKET:-buzz-media}"
+
+for _ in $(seq 1 60); do
+    if curl -fsS -o /dev/null http://127.0.0.1:9000/minio/health/live; then
+        break
+    fi
+    sleep 1
+done
+
+if ! curl -fsS -o /dev/null http://127.0.0.1:9000/minio/health/live; then
+    echo "[buzz-aio][storage] MinIO n'a pas démarré dans le délai imparti" >&2
+    exit 1
+fi
+
+export MC_HOST_local="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@127.0.0.1:9000"
+s6-setuidgid "${BUZZ_USER}" mc --config-dir /config/minio/.mc \
+    mb --ignore-existing "local/${BUCKET}"
+s6-setuidgid "${BUZZ_USER}" mc --config-dir /config/minio/.mc \
+    anonymous set none "local/${BUCKET}"
+
+echo "[buzz-aio][storage] bucket ${BUCKET} prêt"

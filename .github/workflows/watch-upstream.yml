@@ -1,0 +1,104 @@
+name: Veille des versions amont
+
+# Surveille le relay Buzz et les composants embarqués. Quand quelque chose
+# bouge, met à jour versions.env sur main — ce qui déclenche « Build image »,
+# lequel ne publie qu'après avoir démarré l'image avec succès. Un composant
+# amont cassé bloque donc la publication au lieu de casser les installations.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Relever les versions publiées
+        id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # ── Relay Buzz ────────────────────────────────────────────────────
+          # Le tag « latest » est mouvant : on résout et on épingle son digest,
+          # sinon deux builds du même versions.env pourraient différer.
+          token=$(curl -fsS "https://ghcr.io/token?scope=repository:block/buzz:pull&service=ghcr.io" \
+                  | jq -r .token)
+          digest=$(curl -fsS -o /dev/null -D - \
+                     -H "Authorization: Bearer ${token}" \
+                     -H 'Accept: application/vnd.oci.image.index.v1+json' \
+                     -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+                     -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+                     -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+                     "https://ghcr.io/v2/block/buzz/manifests/latest" \
+                   | tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest" {print $2}')
+          [[ "${digest}" == sha256:* ]] || { echo "digest du relay illisible" >&2; exit 1; }
+          echo "BUZZ_REF=ghcr.io/block/buzz@${digest}" >> "$GITHUB_ENV"
+
+          # Version lisible correspondante, pour l'étiquetage et le message de
+          # commit : la release GitHub la plus récente.
+          echo "BUZZ_TAG=$(gh api repos/block/buzz/releases/latest -q .tag_name || echo latest)" >> "$GITHUB_ENV"
+
+          # ── s6-overlay ────────────────────────────────────────────────────
+          s6=$(gh api repos/just-containers/s6-overlay/releases/latest -q .tag_name)
+          echo "S6_OVERLAY_VERSION=${s6#v}" >> "$GITHUB_ENV"
+
+          # ── MinIO + mc ────────────────────────────────────────────────────
+          echo "MINIO_VERSION=$(gh api repos/minio/minio/releases/latest -q .tag_name)" >> "$GITHUB_ENV"
+          echo "MC_VERSION=$(gh api repos/minio/mc/releases/latest -q .tag_name)" >> "$GITHUB_ENV"
+
+      - name: Mettre à jour versions.env
+        id: bump
+        run: |
+          set -euo pipefail
+          changed=()
+          for key in BUZZ_TAG BUZZ_REF S6_OVERLAY_VERSION MINIO_VERSION MC_VERSION; do
+              current=$(grep -E "^${key}=" versions.env | cut -d= -f2-)
+              new="${!key}"
+              if [[ -n "${new}" && "${new}" != "${current}" ]]; then
+                  # Valeurs sans '|' ni retour ligne : séparateur sûr pour sed.
+                  sed -i "s|^${key}=.*|${key}=${new}|" versions.env
+                  changed+=("${key}: ${current} → ${new}")
+              fi
+          done
+
+          if [[ ${#changed[@]} -eq 0 ]]; then
+              echo "Aucune mise à jour amont."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+          fi
+
+          printf 'Mises à jour détectées :\n'
+          printf '  %s\n' "${changed[@]}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          {
+              echo "body<<EOF"
+              printf '%s\n' "${changed[@]}"
+              echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publier la mise à jour
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add versions.env
+          git commit -m "chore: mise à jour des versions amont" \
+                     -m "${{ steps.bump.outputs.body }}"
+          git push
+
+      - name: Déclencher la reconstruction
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # GitHub ne déclenche volontairement aucun workflow sur un push signé
+        # par GITHUB_TOKEN (garde-fou anti-boucle), d'où l'appel explicite.
+        run: gh workflow run build.yml --ref main

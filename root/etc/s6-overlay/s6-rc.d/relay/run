@@ -1,0 +1,93 @@
+#!/command/with-contenv bash
+# Le relay Buzz : WebSocket + REST + UI web sur le port 3000.
+set -euo pipefail
+source /usr/local/bin/buzz-aio-env
+
+warn() { printf '[buzz-aio][relay] ATTENTION : %s\n' "$*" >&2; }
+
+# ─── Attente des dépendances ────────────────────────────────────────────────
+# Le relay applique ses migrations sqlx au démarrage et échoue vite si Postgres
+# n'est pas joignable ; s6 le relancerait en boucle, autant attendre ici.
+for _ in $(seq 1 90); do
+    pg_isready -h 127.0.0.1 -p 5432 -U buzz -q && break
+    sleep 1
+done
+pg_isready -h 127.0.0.1 -p 5432 -U buzz -q || {
+    echo "[buzz-aio][relay] Postgres injoignable" >&2; exit 1
+}
+
+for _ in $(seq 1 60); do
+    [[ "$(redis-cli -h 127.0.0.1 ping 2>/dev/null)" == "PONG" ]] && break
+    sleep 1
+done
+
+# ─── Connexions aux services embarqués ──────────────────────────────────────
+export DATABASE_URL="postgres://buzz:${POSTGRES_PASSWORD}@127.0.0.1:5432/buzz"
+export REDIS_URL="redis://127.0.0.1:6379"
+export BUZZ_S3_ENDPOINT="http://127.0.0.1:9000"
+export BUZZ_S3_BUCKET="${BUZZ_S3_BUCKET:-buzz-media}"
+export BUZZ_S3_ACCESS_KEY="${MINIO_ROOT_USER}"
+export BUZZ_S3_SECRET_KEY="${MINIO_ROOT_PASSWORD}"
+export BUZZ_RELAY_PRIVATE_KEY BUZZ_GIT_HOOK_HMAC_SECRET
+
+# ─── URL publique ───────────────────────────────────────────────────────────
+# RELAY_URL sert aux défis d'authentification NIP-42 et est renvoyée aux
+# clients : si elle ne correspond pas à l'adresse réellement utilisée pour
+# joindre le relay, les clients se connectent mais échouent à s'authentifier.
+export RELAY_URL="${RELAY_URL:-ws://localhost:3000}"
+if [[ "${RELAY_URL}" == "ws://localhost:3000" ]]; then
+    warn "RELAY_URL est resté à sa valeur par défaut (ws://localhost:3000)."
+    warn "Renseignez-la avec l'adresse utilisée par vos clients, par exemple"
+    warn "ws://<ip-de-votre-unraid>:3000 ou wss://buzz.mondomaine.tld."
+fi
+
+if [[ -z "${BUZZ_MEDIA_BASE_URL:-}" ]]; then
+    # Même origine que le relay, en HTTP(S) : le relay sert /media lui-même.
+    media_base="${RELAY_URL/#wss:/https:}"
+    media_base="${media_base/#ws:/http:}"
+    export BUZZ_MEDIA_BASE_URL="${media_base%/}/media"
+fi
+
+# ─── Contrôle d'accès ───────────────────────────────────────────────────────
+# En production Buzz restreint l'accès aux membres du relay, ce qui suppose de
+# connaître la clé publique de l'opérateur. Sans elle, la restriction fermerait
+# le relay à tout le monde, y compris à vous : on bascule alors en relay ouvert
+# et on le signale bruyamment.
+owner="${RELAY_OWNER_PUBKEY:-}"
+if [[ -n "${owner}" ]]; then
+    if [[ ! "${owner}" =~ ^[0-9a-f]{64}$ ]]; then
+        echo "[buzz-aio][relay] RELAY_OWNER_PUBKEY doit être une clé publique Nostr" >&2
+        echo "[buzz-aio][relay] en hexadécimal minuscule de 64 caractères (pas un npub1…)." >&2
+        exit 1
+    fi
+    export RELAY_OWNER_PUBKEY="${owner}"
+    export BUZZ_REQUIRE_RELAY_MEMBERSHIP="${BUZZ_REQUIRE_RELAY_MEMBERSHIP:-true}"
+else
+    export BUZZ_REQUIRE_RELAY_MEMBERSHIP="${BUZZ_REQUIRE_RELAY_MEMBERSHIP:-false}"
+    if [[ "${BUZZ_REQUIRE_RELAY_MEMBERSHIP}" != "true" ]]; then
+        warn "RELAY_OWNER_PUBKEY n'est pas renseignée : le relay démarre en mode"
+        warn "OUVERT (aucune restriction d'appartenance). N'exposez pas ce"
+        warn "conteneur sur Internet dans cet état — voir le README."
+    fi
+fi
+
+# ─── Réglages relay ─────────────────────────────────────────────────────────
+export BUZZ_BIND_ADDR="${BUZZ_BIND_ADDR:-0.0.0.0:3000}"
+export BUZZ_HEALTH_PORT="${BUZZ_HEALTH_PORT:-8080}"
+export BUZZ_METRICS_PORT="${BUZZ_METRICS_PORT:-9102}"
+export BUZZ_AUTO_MIGRATE="${BUZZ_AUTO_MIGRATE:-true}"
+export BUZZ_REQUIRE_AUTH_TOKEN="${BUZZ_REQUIRE_AUTH_TOKEN:-true}"
+export BUZZ_REQUIRE_MEDIA_GET_AUTH="${BUZZ_REQUIRE_MEDIA_GET_AUTH:-true}"
+export BUZZ_GIT_REPO_PATH="${BUZZ_GIT_REPO_PATH:-/config/git}"
+export BUZZ_GIT_PACK_CACHE_PATH="${BUZZ_GIT_PACK_CACHE_PATH:-/config/git-packs}"
+export RUST_LOG="${RUST_LOG:-buzz_relay=info,buzz_datastore=info,tower_http=warn}"
+export HOME=/config/relay
+
+# La console d'administration n'est pas présente dans toutes les versions
+# publiées de l'image : ne pointer la variable que si le bundle existe.
+if [[ -d /srv/buzz/admin-web && -z "${BUZZ_ADMIN_WEB_DIR:-}" ]]; then
+    export BUZZ_ADMIN_WEB_DIR=/srv/buzz/admin-web
+fi
+
+echo "[buzz-aio][relay] démarrage — RELAY_URL=${RELAY_URL}"
+exec s6-setuidgid "${BUZZ_USER}" /usr/local/bin/buzz-relay

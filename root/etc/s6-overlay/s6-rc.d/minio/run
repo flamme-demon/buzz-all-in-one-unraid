@@ -1,0 +1,14 @@
+#!/command/with-contenv bash
+set -euo pipefail
+source /usr/local/bin/buzz-aio-env
+
+# MinIO fournit le stockage objet des médias (protocole Blossom côté relay).
+# Il écoute sur toutes les interfaces pour que le port 9000 reste utilisable si
+# l'utilisateur choisit de le publier ; les identifiants sont aléatoires et
+# propres à l'installation.
+export MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+export MINIO_UPDATE=off
+
+echo "[buzz-aio][minio] démarrage"
+exec s6-setuidgid "${BUZZ_USER}" \
+    minio server /config/minio --address ":9000"

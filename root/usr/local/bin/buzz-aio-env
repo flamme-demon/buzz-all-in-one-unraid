@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Contexte commun aux services : à sourcer, pas à exécuter.
+# Résout le nom de l'utilisateur/groupe applicatif (PUID/PGID pouvant tomber sur
+# des comptes système déjà présents dans l'image) et charge les secrets générés
+# au premier démarrage.
+
+PUID="${PUID:-99}"
+PGID="${PGID:-100}"
+
+BUZZ_USER="$(getent passwd "${PUID}" | cut -d: -f1)"
+BUZZ_GROUP="$(getent group "${PGID}" | cut -d: -f1)"
+export BUZZ_USER BUZZ_GROUP
+
+if [[ -f /config/secrets.env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source /config/secrets.env
+    set +a
+fi

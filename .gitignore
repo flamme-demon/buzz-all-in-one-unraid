@@ -1,0 +1,3 @@
+# Configuration locale et données de test du docker-compose
+.env
+/data/

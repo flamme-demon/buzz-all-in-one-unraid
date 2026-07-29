@@ -1,0 +1,87 @@
+name: Build image
+
+# Construit l'image all-in-one, la démarre pour vérifier qu'elle est réellement
+# fonctionnelle, puis la publie sur GHCR. Le test de démarrage est la garantie
+# principale : c'est lui qui empêche de publier une image cassée par une
+# nouvelle version amont récupérée automatiquement.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'unraid/**'
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Reconstruction hebdomadaire : récupère les correctifs de sécurité Debian
+    # même quand rien ne bouge en amont.
+    - cron: '0 5 * * 1'
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Charger les versions
+        run: cat versions.env >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construire (chargée localement pour le test)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: buzz-aio:test
+          build-args: |
+            BUZZ_REF=${{ env.BUZZ_REF }}
+            S6_OVERLAY_VERSION=${{ env.S6_OVERLAY_VERSION }}
+            MINIO_VERSION=${{ env.MINIO_VERSION }}
+            MC_VERSION=${{ env.MC_VERSION }}
+            PG_MAJOR=${{ env.PG_MAJOR }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test de démarrage
+        run: ./test/smoke.sh buzz-aio:test
+
+      - name: Connexion à GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publier
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # amd64 pour Unraid, arm64 pour les NAS et SBC ARM.
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:relay-${{ env.BUZZ_TAG }}
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            BUZZ_REF=${{ env.BUZZ_REF }}
+            S6_OVERLAY_VERSION=${{ env.S6_OVERLAY_VERSION }}
+            MINIO_VERSION=${{ env.MINIO_VERSION }}
+            MC_VERSION=${{ env.MC_VERSION }}
+            PG_MAJOR=${{ env.PG_MAJOR }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

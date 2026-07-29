@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>buzz-aio</Name>
+  <Repository>local/buzz-aio:latest</Repository>
+  <Registry>https://github.com/block/buzz</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/block/buzz/issues</Support>
+  <Project>https://github.com/block/buzz</Project>
+  <Overview>
+    Buzz all-in-one : le relay Buzz de Block (espace de travail auto-hébergé où humains et agents IA collaborent dans des salons partagés, bâti sur Nostr) avec Postgres, Redis et MinIO embarqués dans un seul conteneur.
+
+    Après démarrage, l'interface web est disponible sur http://[IP]:[PORT:3000] et les clients desktop se connectent en WebSocket sur la même adresse.
+
+    IMPORTANT — renseignez RELAY_URL avec l'adresse que vos clients utiliseront réellement (par ex. ws://192.168.1.10:3000 ou wss://buzz.mondomaine.tld) : elle sert aux défis d'authentification NIP-42.
+
+    IMPORTANT — tant que RELAY_OWNER_PUBKEY est vide, le relay tourne en mode ouvert. Renseignez votre clé publique Nostr (64 caractères hexadécimaux) avant toute exposition hors du réseau local.
+
+    Les données (base, médias, dépôts git, secrets) vivent dans le chemin /config. Sauvegardez /config/secrets.env : il contient l'identité Nostr du relay.
+  </Overview>
+  <Category>Productivity: Network:Messenger Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/block/buzz/main/web/public/favicon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <Config Name="WebUI / WebSocket" Target="3000" Default="3000" Mode="tcp"
+          Description="Port de l'application : interface web, API REST et WebSocket du relay."
+          Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+
+  <Config Name="Données (/config)" Target="/config" Default="/mnt/user/appdata/buzz" Mode="rw"
+          Description="Base Postgres, médias MinIO, dépôts git, secrets. À sauvegarder."
+          Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/buzz</Config>
+
+  <Config Name="RELAY_URL" Target="RELAY_URL" Default="ws://localhost:3000" Mode=""
+          Description="Adresse publique du relay, telle que les clients la joignent. Ex : ws://192.168.1.10:3000 en local, wss://buzz.mondomaine.tld derrière un reverse proxy TLS."
+          Type="Variable" Display="always" Required="true" Mask="false">ws://localhost:3000</Config>
+
+  <Config Name="RELAY_OWNER_PUBKEY" Target="RELAY_OWNER_PUBKEY" Default="" Mode=""
+          Description="Votre clé publique Nostr en hexadécimal minuscule (64 caractères, pas un npub1…). Active la restriction d'accès aux membres du relay. Laissée vide, le relay est OUVERT."
+          Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <Config Name="PUID" Target="PUID" Default="99" Mode=""
+          Description="UID appliqué aux fichiers de /config."
+          Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+
+  <Config Name="PGID" Target="PGID" Default="100" Mode=""
+          Description="GID appliqué aux fichiers de /config."
+          Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+
+  <Config Name="TZ" Target="TZ" Default="Europe/Paris" Mode=""
+          Description="Fuseau horaire du conteneur."
+          Type="Variable" Display="advanced" Required="false" Mask="false">Europe/Paris</Config>
+
+  <Config Name="BUZZ_REQUIRE_MEDIA_GET_AUTH" Target="BUZZ_REQUIRE_MEDIA_GET_AUTH" Default="true" Mode=""
+          Description="Exige une authentification Blossom pour lire les médias. Ne passez à false que sur un réseau de confiance."
+          Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+
+  <Config Name="BUZZ_CORS_ORIGINS" Target="BUZZ_CORS_ORIGINS" Default="" Mode=""
+          Description="Origines autorisées pour le navigateur, séparées par des virgules. Utile derrière un reverse proxy."
+          Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="RUST_LOG" Target="RUST_LOG" Default="buzz_relay=info,buzz_datastore=info,tower_http=warn" Mode=""
+          Description="Verbosité des journaux du relay."
+          Type="Variable" Display="advanced" Required="false" Mask="false">buzz_relay=info,buzz_datastore=info,tower_http=warn</Config>
+
+  <Config Name="API S3 (MinIO)" Target="9000" Default="" Mode="tcp"
+          Description="Optionnel : accès direct au stockage objet des médias. Non nécessaire au fonctionnement — le relay sert /media lui-même."
+          Type="Port" Display="advanced" Required="false" Mask="false"/>
+</Container>

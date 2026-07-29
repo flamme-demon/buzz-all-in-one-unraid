@@ -1,0 +1,7 @@
+#!/command/with-contenv bash
+set -euo pipefail
+source /usr/local/bin/buzz-aio-env
+
+echo "[buzz-aio][redis] démarrage"
+exec s6-setuidgid "${BUZZ_USER}" \
+    redis-server /config/redis/redis.conf

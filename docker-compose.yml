@@ -1,0 +1,37 @@
+# Lancement du conteneur all-in-one hors du template Unraid : test local, ou
+# plugin « Compose Manager » d'Unraid.
+#
+#   docker compose up -d --build
+#
+# Les réglages se font dans .env (voir .env.example).
+
+services:
+  buzz:
+    build:
+      context: .
+      args:
+        BUZZ_TAG: ${BUZZ_TAG:-latest}
+    image: local/buzz-aio:latest
+    container_name: buzz-aio
+    ports:
+      - "${BUZZ_PORT:-3000}:3000"
+    environment:
+      RELAY_URL: ${RELAY_URL:-ws://localhost:3000}
+      RELAY_OWNER_PUBKEY: ${RELAY_OWNER_PUBKEY:-}
+      PUID: ${PUID:-99}
+      PGID: ${PGID:-100}
+      TZ: ${TZ:-Europe/Paris}
+      BUZZ_REQUIRE_MEDIA_GET_AUTH: ${BUZZ_REQUIRE_MEDIA_GET_AUTH:-true}
+      BUZZ_CORS_ORIGINS: ${BUZZ_CORS_ORIGINS:-}
+      RUST_LOG: ${RUST_LOG:-buzz_relay=info,buzz_datastore=info,tower_http=warn}
+    volumes:
+      - ${BUZZ_DATA:-./data}:/config
+    # Le relay expose /_readiness sur le port santé interne (8080), qui ne
+    # passe au vert qu'une fois Postgres, Redis et S3 réellement joignables.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/_readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped

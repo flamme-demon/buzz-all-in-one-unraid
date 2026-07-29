@@ -1,0 +1,7 @@
+#!/command/with-contenv bash
+set -euo pipefail
+source /usr/local/bin/buzz-aio-env
+
+echo "[buzz-aio][postgres] démarrage"
+exec s6-setuidgid "${BUZZ_USER}" \
+    postgres -D /config/postgres

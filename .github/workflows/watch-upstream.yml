@@ -96,7 +96,9 @@ jobs:
           changed=()
           for key in BUZZ_TAG BUZZ_REF S6_OVERLAY_VERSION MINIO_VERSION MC_VERSION; do
               current=$(grep -E "^${key}=" versions.env | cut -d= -f2-)
-              new="${!key}"
+              # Vide quand l'étape précédente a écarté la version amont
+              # (artefact indisponible) : la valeur en place est conservée.
+              new="${!key:-}"
               if [[ -n "${new}" && "${new}" != "${current}" ]]; then
                   # Valeurs sans '|' ni retour ligne : séparateur sûr pour sed.
                   sed -i "s|^${key}=.*|${key}=${new}|" versions.env

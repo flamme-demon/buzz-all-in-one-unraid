@@ -34,8 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Seules les affectations sont reprises : GITHUB_ENV rejette les
+      # commentaires et les lignes vides de versions.env.
       - name: Charger les versions
-        run: cat versions.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Z][A-Z0-9_]*=' versions.env >> "$GITHUB_ENV"
 
       - uses: docker/setup-buildx-action@v3
 

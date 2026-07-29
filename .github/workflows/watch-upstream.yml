@@ -48,13 +48,46 @@ jobs:
           # commit : la release GitHub la plus récente.
           echo "BUZZ_TAG=$(gh api repos/block/buzz/releases/latest -q .tag_name || echo latest)" >> "$GITHUB_ENV"
 
+          # Une release publiée n'implique pas un artefact téléchargeable :
+          # MinIO, par exemple, tague sur GitHub sans systématiquement pousser
+          # les binaires sur dl.min.io. Retenir une version non téléchargeable
+          # ferait échouer tous les builds suivants, y compris les
+          # reconstructions de sécurité — on ne propose donc que ce qui se
+          # télécharge réellement, sur les deux architectures publiées.
+          available() {
+              local url
+              for url in "$@"; do
+                  curl -fsIL --retry 3 --retry-delay 2 -o /dev/null "${url}" || return 1
+              done
+          }
+
           # ── s6-overlay ────────────────────────────────────────────────────
           s6=$(gh api repos/just-containers/s6-overlay/releases/latest -q .tag_name)
-          echo "S6_OVERLAY_VERSION=${s6#v}" >> "$GITHUB_ENV"
+          base="https://github.com/just-containers/s6-overlay/releases/download/${s6}"
+          if available "${base}/s6-overlay-noarch.tar.xz" \
+                       "${base}/s6-overlay-x86_64.tar.xz" \
+                       "${base}/s6-overlay-aarch64.tar.xz"; then
+              echo "S6_OVERLAY_VERSION=${s6#v}" >> "$GITHUB_ENV"
+          else
+              echo "::warning::s6-overlay ${s6} publié sans ses archives — version conservée"
+          fi
 
           # ── MinIO + mc ────────────────────────────────────────────────────
-          echo "MINIO_VERSION=$(gh api repos/minio/minio/releases/latest -q .tag_name)" >> "$GITHUB_ENV"
-          echo "MC_VERSION=$(gh api repos/minio/mc/releases/latest -q .tag_name)" >> "$GITHUB_ENV"
+          minio=$(gh api repos/minio/minio/releases/latest -q .tag_name)
+          if available "https://dl.min.io/server/minio/release/linux-amd64/archive/minio.${minio}" \
+                       "https://dl.min.io/server/minio/release/linux-arm64/archive/minio.${minio}"; then
+              echo "MINIO_VERSION=${minio}" >> "$GITHUB_ENV"
+          else
+              echo "::warning::MinIO ${minio} absent de dl.min.io — version conservée"
+          fi
+
+          mc=$(gh api repos/minio/mc/releases/latest -q .tag_name)
+          if available "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.${mc}" \
+                       "https://dl.min.io/client/mc/release/linux-arm64/archive/mc.${mc}"; then
+              echo "MC_VERSION=${mc}" >> "$GITHUB_ENV"
+          else
+              echo "::warning::mc ${mc} absent de dl.min.io — version conservée"
+          fi
 
       - name: Mettre à jour versions.env
         id: bump

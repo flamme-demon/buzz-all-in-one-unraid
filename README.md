@@ -1,113 +1,115 @@
-# Buzz all-in-one pour Unraid
+# Buzz all-in-one for Unraid
 
-[Buzz](https://github.com/block/buzz) est un espace de travail auto-hébergé, développé par Block, où humains et agents IA collaborent dans des salons partagés : messages, revues de code, étapes de workflow et évènements git sont tous des évènements Nostr signés, dans un journal d'audit unique.
+***English** · [Français](README.fr.md)*
 
-Le relay Buzz est un binaire Rust qui a besoin de trois services externes :
+[Buzz](https://github.com/block/buzz) is a self-hosted workspace, built by Block, where humans and AI agents collaborate in shared rooms: messages, code reviews, workflow steps and git events are all signed Nostr events in a single audit log.
 
-| Service | Rôle |
+The Buzz relay is a Rust binary that needs three external services:
+
+| Service | Role |
 | --- | --- |
-| PostgreSQL 17 | stockage des évènements et recherche plein texte |
-| Redis 7 | pub/sub et présence |
-| S3 (MinIO) | stockage des médias (protocole Blossom) |
+| PostgreSQL 17 | event storage and full-text search |
+| Redis | pub/sub and presence |
+| S3 (MinIO) | media storage (Blossom protocol) |
 
-Ce dépôt les réunit dans **une seule image Docker**, supervisée par [s6-overlay](https://github.com/just-containers/s6-overlay), pour tenir dans le modèle « un conteneur = une application » d'Unraid — au lieu d'une pile de quatre conteneurs à orchestrer à la main.
+This repository bundles them into **a single Docker image**, supervised by [s6-overlay](https://github.com/just-containers/s6-overlay), to fit Unraid's "one container, one app" model — instead of a four-container stack to wire up by hand.
 
-Les binaires du relay ne sont pas recompilés : ils sont repris tels quels de l'image officielle `ghcr.io/block/buzz`, épinglée par digest dans [`versions.env`](versions.env).
+The relay binaries are not rebuilt: they are taken as-is from the official `ghcr.io/block/buzz` image, pinned by digest in [`versions.env`](versions.env).
 
-## Installation sur Unraid
+## Installing on Unraid
 
-### 1. Récupérer l'image
+### 1. Get the image
 
-L'image est publiée par la CI de ce dépôt :
+The image is published by this repository's CI:
 
 ```
-ghcr.io/<votre-compte>/buzz-all-in-one-unraid:latest
+ghcr.io/flamme-demon/buzz-all-in-one-unraid:latest
 ```
 
-Pour la construire vous-même, depuis un terminal Unraid :
+To build it yourself, from an Unraid terminal:
 
 ```bash
-git clone https://github.com/<votre-compte>/buzz-all-in-one-unraid.git
+git clone https://github.com/flamme-demon/buzz-all-in-one-unraid.git
 cd buzz-all-in-one-unraid
 ./build.sh
 ```
 
-### 2. Ajouter le conteneur
+### 2. Add the container
 
-Copiez [`unraid/buzz-aio.xml`](unraid/buzz-aio.xml) dans `/boot/config/plugins/dockerMan/templates-user/`, puis, dans l'onglet **Docker** d'Unraid, *Add Container* → sélectionnez `buzz-aio` dans la liste des templates utilisateur.
+Copy [`unraid/buzz-aio.xml`](unraid/buzz-aio.xml) into `/boot/config/plugins/dockerMan/templates-user/`, then, in Unraid's **Docker** tab, *Add Container* → pick `buzz-aio` from the user templates list.
 
-À défaut, créez le conteneur à la main avec les réglages du tableau ci-dessous.
+Otherwise, create the container by hand using the settings table below.
 
-### 3. Régler les deux variables qui comptent
+### 3. Set the two variables that matter
 
-**`RELAY_URL`** — l'adresse à laquelle vos clients joignent réellement le relay, par exemple `ws://192.168.1.10:3000`, ou `wss://buzz.mondomaine.tld` derrière un reverse proxy. Elle sert aux défis d'authentification NIP-42 : si elle ne correspond pas, les clients se connectent puis échouent à s'authentifier, ce qui donne un symptôme déroutant (« connecté » mais rien ne marche).
+**`RELAY_URL`** — the address your clients actually use to reach the relay, for example `ws://192.168.1.10:3000`, or `wss://buzz.example.com` behind a reverse proxy. It is used in NIP-42 authentication challenges: if it doesn't match, clients connect but then fail to authenticate, which is a confusing symptom ("connected" yet nothing works).
 
-**`RELAY_OWNER_PUBKEY`** — votre clé publique Nostr, en hexadécimal minuscule de 64 caractères (pas un `npub1…`). Elle active la restriction d'accès aux membres du relay. Récupérez-la dans le client Buzz après avoir créé votre identité.
+**`RELAY_OWNER_PUBKEY`** — your Nostr public key, as 64 lowercase hex characters (not an `npub1…`). It enables relay membership enforcement. Copy it from the Buzz client after creating your identity.
 
-> Tant que `RELAY_OWNER_PUBKEY` est vide, le relay démarre en **mode ouvert** : n'importe qui pouvant l'atteindre peut y écrire. C'est un compromis délibéré — activer la restriction sans connaître la clé de l'opérateur fermerait le relay à tout le monde, y compris à vous. Le conteneur le signale dans ses journaux à chaque démarrage. N'exposez pas le conteneur hors du réseau local dans cet état.
+> While `RELAY_OWNER_PUBKEY` is empty, the relay starts in **open mode**: anyone who can reach it can write to it. This is a deliberate trade-off — enforcing membership without knowing the operator's key would lock everyone out, including you. The container says so in its logs on every start. Do not expose the container beyond your local network in this state.
 
-### 4. Démarrer
+### 4. Start it
 
-Le premier démarrage initialise le cluster Postgres, génère les secrets et applique les migrations : comptez une à deux minutes. Ensuite, l'interface web répond sur `http://<ip-unraid>:3000/index.html`, et les clients desktop Buzz se connectent en WebSocket sur la même adresse.
+The first start initialises the Postgres cluster, generates secrets and runs the migrations: expect one to two minutes. The web UI then answers on `http://<unraid-ip>:3000/index.html`, and Buzz desktop clients connect over WebSocket at the same address.
 
-> L'URL se termine bien par `/index.html` : les versions actuelles du relay servent le bundle web sur cette route et sur `/assets/*`, mais répondent 404 sur la racine nue. Le template Unraid pointe donc le bouton *WebUI* dessus.
+> The URL does end in `/index.html`: current relay versions serve the web bundle from that route and `/assets/*`, but answer 404 on the bare root. The Unraid template points the *WebUI* button there accordingly.
 
-## Réglages
+## Settings
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Role |
 | --- | --- | --- |
-| `RELAY_URL` | `ws://localhost:3000` | adresse publique du relay (NIP-42) |
-| `RELAY_OWNER_PUBKEY` | *(vide)* | clé publique de l'opérateur, 64 hex |
-| `PUID` / `PGID` | `99` / `100` | propriétaire des fichiers de `/config` |
-| `TZ` | `Europe/Paris` | fuseau horaire |
-| `BUZZ_REQUIRE_AUTH_TOKEN` | `true` | authentification exigée sur l'API REST |
-| `BUZZ_REQUIRE_MEDIA_GET_AUTH` | `true` | authentification exigée en lecture des médias |
-| `BUZZ_CORS_ORIGINS` | *(vide)* | origines navigateur autorisées, séparées par des virgules |
-| `RUST_LOG` | `buzz_relay=info,…` | verbosité des journaux |
+| `RELAY_URL` | `ws://localhost:3000` | public relay address (NIP-42) |
+| `RELAY_OWNER_PUBKEY` | *(empty)* | operator public key, 64 hex chars |
+| `PUID` / `PGID` | `99` / `100` | ownership of files under `/config` |
+| `TZ` | `Europe/Paris` | container timezone |
+| `BUZZ_REQUIRE_AUTH_TOKEN` | `true` | authentication required on the REST API |
+| `BUZZ_REQUIRE_MEDIA_GET_AUTH` | `true` | authentication required to read media |
+| `BUZZ_CORS_ORIGINS` | *(empty)* | allowed browser origins, comma-separated |
+| `RUST_LOG` | `buzz_relay=info,…` | log verbosity |
 
-Toute variable reconnue par le relay (voir le [`.env.example` amont](https://github.com/block/buzz/blob/main/.env.example)) peut être ajoutée au conteneur : elle est transmise telle quelle. Seules `DATABASE_URL`, `REDIS_URL` et les variables `BUZZ_S3_*` sont imposées par l'image, puisqu'elles pointent vers les services embarqués.
+Any variable the relay understands (see the [upstream `.env.example`](https://github.com/block/buzz/blob/main/.env.example)) can be added to the container and is passed straight through. Only `DATABASE_URL`, `REDIS_URL` and the `BUZZ_S3_*` variables are imposed by the image, since they point at the bundled services.
 
 ### Ports
 
-| Port | Usage |
+| Port | Use |
 | --- | --- |
-| 3000 | interface web, API REST, WebSocket — **le seul à publier** |
-| 9000 | API S3 de MinIO, optionnelle : le relay sert `/media` lui-même |
-| 8080 | sondes `/_liveness` et `/_readiness`, internes au conteneur |
-| 9102 | métriques Prometheus, internes au conteneur |
+| 3000 | web UI, REST API, WebSocket — **the only one to publish** |
+| 9000 | MinIO's S3 API, optional: the relay serves `/media` itself |
+| 8080 | `/_liveness` and `/_readiness` probes, container-internal |
+| 9102 | Prometheus metrics, container-internal |
 
-Pour exposer les métriques, publiez le port 9102 dans le template.
+To expose metrics, publish port 9102 in the template.
 
-## Données et sauvegarde
+## Data and backups
 
-Tout vit sous `/config` (par défaut `/mnt/user/appdata/buzz`) :
+Everything lives under `/config` (by default `/mnt/user/appdata/buzz`):
 
 ```
 /config
-├── secrets.env    identité Nostr du relay + mots de passe internes
-├── postgres/      base de données
-├── minio/         médias
-├── git/           dépôts NIP-34
-├── git-packs/     cache de packs git (reconstructible)
-└── redis/         snapshot pub/sub (reconstructible)
+├── secrets.env    relay Nostr identity + internal passwords
+├── postgres/      database
+├── minio/         media
+├── git/           NIP-34 repositories
+├── git-packs/     git pack cache (rebuildable)
+└── redis/         pub/sub snapshot (rebuildable)
 ```
 
-`secrets.env` est généré au premier démarrage et contient `BUZZ_RELAY_PRIVATE_KEY`, **l'identité Nostr du relay**. La perdre revient à changer l'identité du relay aux yeux de tous les clients : sauvegardez ce fichier, et si vous restaurez, restaurez-le avec le reste de `/config`.
+`secrets.env` is generated on first start and holds `BUZZ_RELAY_PRIVATE_KEY`, **the relay's Nostr identity**. Losing it changes the relay's identity as every client sees it: back this file up, and if you restore, restore it along with the rest of `/config`.
 
-## Mises à jour
+## Updates
 
-`versions.env` est la source de vérité de tout ce qui est embarqué. Le workflow [`watch-upstream.yml`](.github/workflows/watch-upstream.yml) le vérifie chaque jour et met à jour, le cas échéant :
+`versions.env` is the source of truth for everything bundled. The [`watch-upstream.yml`](.github/workflows/watch-upstream.yml) workflow checks it daily and updates, where applicable:
 
-- le digest de `ghcr.io/block/buzz:latest` (le relay lui-même) ;
-- s6-overlay, MinIO et le client `mc`.
+- the digest of `ghcr.io/block/buzz:latest` (the relay itself);
+- s6-overlay, MinIO and the `mc` client.
 
-Un changement est commité sur `main`, ce qui relance [`build.yml`](.github/workflows/build.yml). Celui-ci **démarre l'image et attend que `/_readiness` passe au vert avant de publier** : une version amont qui ne démarre pas avec cette pile bloque la publication au lieu de casser les installations. Une reconstruction hebdomadaire récupère par ailleurs les correctifs de sécurité Debian.
+A change is committed to `main`, which re-runs [`build.yml`](.github/workflows/build.yml). That workflow **starts the image and waits for `/_readiness` to go green before publishing**: an upstream version that doesn't come up with this stack blocks the release instead of breaking installs. A weekly rebuild additionally picks up Debian security fixes.
 
-Postgres reste épinglé sur la 17 : un changement de version majeure imposerait une migration du cluster existant, qui doit rester une décision manuelle.
+Postgres stays pinned to 17: a major version change would require migrating the existing cluster, which must remain a manual decision.
 
-Côté Unraid, la mise à jour est le bouton habituel du conteneur. Les migrations de schéma sont appliquées automatiquement au démarrage (`BUZZ_AUTO_MIGRATE=true`) — **sauvegardez `/config` avant une montée de version**.
+On Unraid, updating is the container's usual button. Schema migrations run automatically on start (`BUZZ_AUTO_MIGRATE=true`) — **back up `/config` before a version bump**.
 
-## Développement local
+## Local development
 
 ```bash
 cp .env.example .env
@@ -115,22 +117,22 @@ docker compose up -d --build
 docker compose logs -f
 ```
 
-Test de démarrage complet (celui que la CI exécute) :
+Full start-up test (the one CI runs):
 
 ```bash
 ./test/smoke.sh local/buzz-aio:latest
 ```
 
-## Dépannage
+## Troubleshooting
 
-**Le conteneur redémarre en boucle.** Regardez les journaux : le relay attend jusqu'à 90 s que Postgres soit prêt, puis abandonne. Sur un premier démarrage lent (array en spin-up), un simple redémarrage suffit généralement.
+**The container restarts in a loop.** Check the logs: the relay waits up to 90 s for Postgres, then gives up. On a slow first start (array spinning up), a restart is usually enough.
 
-**Les clients se connectent mais l'authentification échoue.** `RELAY_URL` ne correspond pas à l'adresse réellement utilisée. Elle doit inclure le schéma et le port exacts.
+**Clients connect but authentication fails.** `RELAY_URL` doesn't match the address actually in use. It must include the exact scheme and port.
 
-**« relay démarre en mode OUVERT » dans les journaux.** `RELAY_OWNER_PUBKEY` est vide ou n'est pas au format hexadécimal 64 caractères.
+**"relay démarre en mode OUVERT" in the logs.** `RELAY_OWNER_PUBKEY` is empty or is not 64 hex characters.
 
-**Droits d'accès sur `/mnt/user/appdata/buzz`.** Ajustez `PUID`/`PGID` ; l'image applique la propriété à l'initialisation, mais ne réécrit pas récursivement une arborescence existante.
+**Permission problems on `/mnt/user/appdata/buzz`.** Adjust `PUID`/`PGID`; the image applies ownership at init, but does not recursively rewrite an existing tree.
 
 ## Licence
 
-Le relay Buzz est publié par Block sous licence Apache 2.0. Ce dépôt ne contient que l'empaquetage (Dockerfile, scripts de service, template Unraid).
+The Buzz relay is published by Block under the Apache 2.0 licence. This repository only contains the packaging (Dockerfile, service scripts, Unraid template).

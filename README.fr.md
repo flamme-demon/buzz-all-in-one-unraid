@@ -143,7 +143,11 @@ Trois messages sans gravité apparaissent à chaque démarrage. Le relay écoute
 
 **Le conteneur redémarre en boucle.** Regardez les journaux : le relay attend jusqu'à 90 s que Postgres soit prêt, puis abandonne. Sur un premier démarrage lent (array en spin-up), un simple redémarrage suffit généralement.
 
-**Les clients se connectent mais l'authentification échoue.** `RELAY_URL` ne correspond pas à l'adresse réellement utilisée. Elle doit inclure le schéma et le port exacts.
+**`relay: no community is configured for this host`.** Le relay enregistre sa communauté pour le host lu dans `RELAY_URL` (visible au démarrage : `Deployment community ensured host=…`). Si vous l'atteignez par une autre adresse, il ne trouve aucune communauté. Corrigez `RELAY_URL` et redémarrez : la communauté est créée pour le nouveau host, sans perte des données existantes.
+
+**Les clients se connectent mais l'authentification échoue.** Même cause : `RELAY_URL` ne correspond pas à l'adresse réellement utilisée. Elle doit inclure le schéma et le port exacts.
+
+**L'app refuse l'adresse du relay.** Saisissez le schéma explicitement (`ws://192.168.1.10:3000`) : une adresse sans schéma est interprétée comme `wss://`, donc en TLS, ce qu'un relay local ne sert pas.
 
 **« relay démarre en mode OUVERT » dans les journaux.** `RELAY_OWNER_PUBKEY` est vide ou n'est pas au format hexadécimal 64 caractères.
 

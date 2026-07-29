@@ -143,7 +143,11 @@ Three harmless messages show up on every start. The relay is up if the logs end 
 
 **The container restarts in a loop.** Check the logs: the relay waits up to 90 s for Postgres, then gives up. On a slow first start (array spinning up), a restart is usually enough.
 
-**Clients connect but authentication fails.** `RELAY_URL` doesn't match the address actually in use. It must include the exact scheme and port.
+**`relay: no community is configured for this host`.** The relay registers its community for the host it reads from `RELAY_URL` (shown at start-up: `Deployment community ensured host=…`). Reach it by any other address and it finds no community. Fix `RELAY_URL` and restart: the community is created for the new host, with no loss of existing data.
+
+**Clients connect but authentication fails.** Same cause: `RELAY_URL` doesn't match the address actually in use. It must include the exact scheme and port.
+
+**The app rejects the relay address.** Type the scheme explicitly (`ws://192.168.1.10:3000`): a scheme-less address is treated as `wss://`, i.e. TLS, which a local relay does not serve.
 
 **"relay démarre en mode OUVERT" in the logs.** `RELAY_OWNER_PUBKEY` is empty or is not 64 hex characters.
 

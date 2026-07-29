@@ -125,6 +125,18 @@ Test de démarrage complet (celui que la CI exécute) :
 
 ## Dépannage
 
+### Messages normaux au démarrage
+
+Trois messages sans gravité apparaissent à chaque démarrage. Le relay écoute bien si les journaux se terminent par `buzz-relay TCP listening`.
+
+**`ERROR: partition "events_p2026_07" would overlap partition "events_p_future"`** (Postgres). Le relay tente de créer ses partitions mensuelles alors qu'une partition « future » les couvre déjà. Les migrations aboutissent malgré tout (`Database migrations complete`) : c'est un défaut cosmétique du projet amont, pas de cet empaquetage.
+
+**`WARNING Memory overcommit must be enabled`** (Redis). Redis ne sert ici que de bus pub/sub et de compteur de présence, avec un jeu de données minuscule : l'avertissement est sans effet pratique. Pour le faire taire, `sysctl vm.overcommit_memory=1` sur l'hôte Unraid.
+
+**`A host failure will result in data becoming unavailable`** (MinIO). Normal sur un stockage à disque unique — c'est bien la configuration voulue ici, la redondance étant assurée par l'array Unraid.
+
+### Problèmes réels
+
 **Le conteneur redémarre en boucle.** Regardez les journaux : le relay attend jusqu'à 90 s que Postgres soit prêt, puis abandonne. Sur un premier démarrage lent (array en spin-up), un simple redémarrage suffit généralement.
 
 **Les clients se connectent mais l'authentification échoue.** `RELAY_URL` ne correspond pas à l'adresse réellement utilisée. Elle doit inclure le schéma et le port exacts.

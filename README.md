@@ -125,6 +125,18 @@ Full start-up test (the one CI runs):
 
 ## Troubleshooting
 
+### Normal start-up messages
+
+Three harmless messages show up on every start. The relay is up if the logs end with `buzz-relay TCP listening`.
+
+**`ERROR: partition "events_p2026_07" would overlap partition "events_p_future"`** (Postgres). The relay tries to create its monthly partitions while a catch-all "future" partition already covers them. Migrations still complete (`Database migrations complete`): this is a cosmetic upstream issue, not one of this packaging.
+
+**`WARNING Memory overcommit must be enabled`** (Redis). Redis is only a pub/sub bus and presence counter here, with a tiny dataset, so the warning has no practical effect. To silence it, run `sysctl vm.overcommit_memory=1` on the Unraid host.
+
+**`A host failure will result in data becoming unavailable`** (MinIO). Expected on single-drive storage — that is the intended setup here, with redundancy provided by the Unraid array.
+
+### Real problems
+
 **The container restarts in a loop.** Check the logs: the relay waits up to 90 s for Postgres, then gives up. On a slow first start (array spinning up), a restart is usually enough.
 
 **Clients connect but authentication fails.** `RELAY_URL` doesn't match the address actually in use. It must include the exact scheme and port.

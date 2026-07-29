@@ -6,8 +6,11 @@ source /usr/local/bin/buzz-aio-env
 
 BUCKET="${BUZZ_S3_BUCKET:-buzz-media}"
 
+# Silencieux pendant l'attente (-s sans -S) : les premières tentatives
+# échouent forcément, tant que MinIO n'écoute pas encore, et un « Failed to
+# connect » dans les journaux de démarrage se lit à tort comme une panne.
 for _ in $(seq 1 60); do
-    if curl -fsS -o /dev/null http://127.0.0.1:9000/minio/health/live; then
+    if curl -fs -o /dev/null http://127.0.0.1:9000/minio/health/live; then
         break
     fi
     sleep 1

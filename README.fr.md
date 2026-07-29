@@ -54,9 +54,9 @@ Le premier démarrage initialise le cluster Postgres, génère les secrets et ap
 
 ### 5. Se connecter
 
-**Buzz n'a pas de client web.** Téléchargez l'application desktop depuis les [releases du projet](https://github.com/block/buzz/releases) — `.AppImage` ou `.deb` pour Linux, `.dmg` pour macOS, `.exe` pour Windows — puis pointez-la sur `ws://<ip-unraid>:3000`. Un client mobile Flutter est en développement chez l'amont.
+**La discussion se fait dans l'application desktop**, à télécharger depuis les [releases du projet](https://github.com/block/buzz/releases) — `.AppImage` ou `.deb` pour Linux, `.dmg` pour macOS, `.exe` pour Windows. Pointez-la sur `ws://<ip-unraid>:3000`. Un client mobile Flutter est en développement chez l'amont.
 
-Le bundle web servi par le relay ne remplace pas ce client : il se limite aux pages d'invitation et à un navigateur de dépôts git. Le template ne définit donc volontairement pas de bouton *WebUI*.
+Le relay sert aussi une interface web légère sur `http://<ip-unraid>:3000/` : navigateur des dépôts git poussés sur le relay et pages d'invitation. Ce n'est pas un client de messagerie, mais le bouton *WebUI* du template y mène.
 
 ## Réglages
 

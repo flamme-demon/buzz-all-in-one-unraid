@@ -54,9 +54,9 @@ The first start initialises the Postgres cluster, generates secrets and runs the
 
 ### 5. Connect
 
-**Buzz has no web client.** Download the desktop app from the [project releases](https://github.com/block/buzz/releases) — `.AppImage` or `.deb` for Linux, `.dmg` for macOS, `.exe` for Windows — then point it at `ws://<unraid-ip>:3000`. A Flutter mobile client is in development upstream.
+**Chat happens in the desktop app**, downloadable from the [project releases](https://github.com/block/buzz/releases) — `.AppImage` or `.deb` for Linux, `.dmg` for macOS, `.exe` for Windows. Point it at `ws://<unraid-ip>:3000`. A Flutter mobile client is in development upstream.
 
-The web bundle the relay serves is not a replacement: it covers invite pages and a git repository browser only. The template therefore deliberately defines no *WebUI* button.
+The relay also serves a lightweight web interface at `http://<unraid-ip>:3000/`: a browser for the git repositories pushed to the relay, plus invite pages. It is not a chat client, but the template's *WebUI* button points there.
 
 ## Settings
 

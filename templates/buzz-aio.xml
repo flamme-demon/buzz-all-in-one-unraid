@@ -21,10 +21,11 @@
     Les données (base, médias, dépôts git, secrets) vivent dans le chemin /config. Sauvegardez /config/secrets.env : il contient l'identité Nostr du relay.
   </Overview>
   <Category>Productivity: Network:Messenger Tools:</Category>
-  <!-- Pas de WebUI : Buzz n'a pas de client web. Le bundle servi par le relay
-       se limite aux pages d'invitation et à un navigateur de dépôts git ; on
-       se connecte avec l'application desktop. Un bouton WebUI n'ouvrirait
-       qu'une page sans intérêt pour l'utilisateur. -->
+  <!-- Interface web légère : navigateur de dépôts git et pages d'invitation.
+       Elle n'est servie que si l'en-tête Host de la requête correspond à
+       RELAY_URL, sans quoi le relay répond 404. La discussion se fait dans
+       l'application desktop. -->
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/flamme-demon/buzz-all-in-one-unraid/main/templates/buzz-aio.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/flamme-demon/buzz-all-in-one-unraid/main/README.md</ReadMe>
   <Icon>https://raw.githubusercontent.com/block/buzz/main/desktop/src-tauri/icons/128x128@2x.png</Icon>

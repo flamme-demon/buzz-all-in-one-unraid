@@ -53,11 +53,11 @@ if [[ "${ready}" != true ]]; then
     exit 1
 fi
 
-# Le relay sert le bundle web sur /index.html et /assets/* ; la racine nue
-# répond 404 sur les versions actuelles, d'où l'URL explicite ici et dans le
-# template Unraid.
+# La racine ne sert l'interface web que si l'en-tête Host correspond à
+# RELAY_URL — le relay y résout la communauté du déploiement. D'où le Host
+# explicite : sans lui, curl envoie 127.0.0.1 et reçoit un 404 trompeur.
 echo "Vérification de l'interface web"
-curl -fsS -o /dev/null "http://127.0.0.1:${PORT}/index.html"
+curl -fsS -o /dev/null -H "Host: localhost:${PORT}" "http://127.0.0.1:${PORT}/"
 
 echo "Vérification des assets du bundle web"
 asset=$(docker exec "${NAME}" sh -c \

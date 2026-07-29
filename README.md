@@ -21,14 +21,14 @@ Les binaires du relay ne sont pas recompilés : ils sont repris tels quels de l'
 L'image est publiée par la CI de ce dépôt :
 
 ```
-ghcr.io/<votre-compte>/buuz-all-in-one-unraid:latest
+ghcr.io/<votre-compte>/buzz-all-in-one-unraid:latest
 ```
 
 Pour la construire vous-même, depuis un terminal Unraid :
 
 ```bash
-git clone https://github.com/<votre-compte>/buuz-all-in-one-unraid.git
-cd buuz-all-in-one-unraid
+git clone https://github.com/<votre-compte>/buzz-all-in-one-unraid.git
+cd buzz-all-in-one-unraid
 ./build.sh
 ```
 

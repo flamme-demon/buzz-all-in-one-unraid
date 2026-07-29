@@ -2,6 +2,9 @@
 set -euo pipefail
 source /usr/local/bin/buzz-aio-env
 
+# L'arrêt est signalé par SIGINT (voir down-signal) : le mode « fast shutdown »
+# de Postgres coupe les connexions restantes au lieu de les attendre, ce qui
+# évite de buter sur le délai d'arrêt de Docker.
 echo "[buzz-aio][postgres] démarrage"
 exec s6-setuidgid "${BUZZ_USER}" \
     postgres -D /config/postgres

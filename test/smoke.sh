@@ -53,8 +53,17 @@ if [[ "${ready}" != true ]]; then
     exit 1
 fi
 
+# Le relay sert le bundle web sur /index.html et /assets/* ; la racine nue
+# répond 404 sur les versions actuelles, d'où l'URL explicite ici et dans le
+# template Unraid.
 echo "Vérification de l'interface web"
-curl -fsS -o /dev/null "http://127.0.0.1:${PORT}/"
+curl -fsS -o /dev/null "http://127.0.0.1:${PORT}/index.html"
+
+echo "Vérification des assets du bundle web"
+asset=$(docker exec "${NAME}" sh -c \
+    'grep -o "/assets/[a-zA-Z0-9._-]*\.js" /srv/buzz/web/index.html | head -1')
+[[ -n "${asset}" ]] || { echo "aucun asset trouvé dans index.html" >&2; exit 1; }
+curl -fsS -o /dev/null "http://127.0.0.1:${PORT}${asset}"
 
 echo "Vérification du document NIP-11 du relay"
 docker exec "${NAME}" curl -fsS -H 'Accept: application/nostr+json' \

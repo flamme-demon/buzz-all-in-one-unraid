@@ -48,7 +48,9 @@ Copiez [`unraid/buzz-aio.xml`](unraid/buzz-aio.xml) dans `/boot/config/plugins/d
 
 ### 4. Démarrer
 
-Le premier démarrage initialise le cluster Postgres, génère les secrets et applique les migrations : comptez une à deux minutes. Ensuite, l'interface web répond sur `http://<ip-unraid>:3000/`, et les clients desktop Buzz se connectent sur la même adresse.
+Le premier démarrage initialise le cluster Postgres, génère les secrets et applique les migrations : comptez une à deux minutes. Ensuite, l'interface web répond sur `http://<ip-unraid>:3000/index.html`, et les clients desktop Buzz se connectent en WebSocket sur la même adresse.
+
+> L'URL se termine bien par `/index.html` : les versions actuelles du relay servent le bundle web sur cette route et sur `/assets/*`, mais répondent 404 sur la racine nue. Le template Unraid pointe donc le bouton *WebUI* dessus.
 
 ## Réglages
 

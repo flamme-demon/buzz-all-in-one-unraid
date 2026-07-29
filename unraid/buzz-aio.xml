@@ -12,7 +12,7 @@
   <Overview>
     Buzz all-in-one : le relay Buzz de Block (espace de travail auto-hébergé où humains et agents IA collaborent dans des salons partagés, bâti sur Nostr) avec Postgres, Redis et MinIO embarqués dans un seul conteneur.
 
-    Après démarrage, l'interface web est disponible sur http://[IP]:[PORT:3000] et les clients desktop se connectent en WebSocket sur la même adresse.
+    Après démarrage, l'interface web est disponible sur http://[IP]:[PORT:3000]/index.html et les clients desktop se connectent en WebSocket sur la même adresse.
 
     IMPORTANT — renseignez RELAY_URL avec l'adresse que vos clients utiliseront réellement (par ex. ws://192.168.1.10:3000 ou wss://buzz.mondomaine.tld) : elle sert aux défis d'authentification NIP-42.
 
@@ -21,7 +21,8 @@
     Les données (base, médias, dépôts git, secrets) vivent dans le chemin /config. Sauvegardez /config/secrets.env : il contient l'identité Nostr du relay.
   </Overview>
   <Category>Productivity: Network:Messenger Tools:</Category>
-  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <!-- Le relay sert le bundle web sur /index.html ; la racine nue répond 404. -->
+  <WebUI>http://[IP]:[PORT:3000]/index.html</WebUI>
   <TemplateURL/>
   <Icon>https://raw.githubusercontent.com/block/buzz/main/web/public/favicon.png</Icon>
   <ExtraParams/>

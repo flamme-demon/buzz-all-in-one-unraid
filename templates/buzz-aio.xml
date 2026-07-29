@@ -12,7 +12,7 @@
   <Overview>
     Buzz all-in-one : le relay Buzz de Block (espace de travail auto-hébergé où humains et agents IA collaborent dans des salons partagés, bâti sur Nostr) avec Postgres, Redis et MinIO embarqués dans un seul conteneur.
 
-    Après démarrage, l'interface web est disponible sur http://[IP]:[PORT:3000]/index.html et les clients desktop se connectent en WebSocket sur la même adresse.
+    Buzz n'a pas de client web : installez l'application desktop (macOS, Linux, Windows) depuis https://github.com/block/buzz/releases et pointez-la sur ce relay en WebSocket, à l'adresse ws://[IP]:[PORT:3000].
 
     IMPORTANT — renseignez RELAY_URL avec l'adresse que vos clients utiliseront réellement (par ex. ws://192.168.1.10:3000 ou wss://buzz.mondomaine.tld) : elle sert aux défis d'authentification NIP-42.
 
@@ -21,8 +21,10 @@
     Les données (base, médias, dépôts git, secrets) vivent dans le chemin /config. Sauvegardez /config/secrets.env : il contient l'identité Nostr du relay.
   </Overview>
   <Category>Productivity: Network:Messenger Tools:</Category>
-  <!-- Le relay sert le bundle web sur /index.html ; la racine nue répond 404. -->
-  <WebUI>http://[IP]:[PORT:3000]/index.html</WebUI>
+  <!-- Pas de WebUI : Buzz n'a pas de client web. Le bundle servi par le relay
+       se limite aux pages d'invitation et à un navigateur de dépôts git ; on
+       se connecte avec l'application desktop. Un bouton WebUI n'ouvrirait
+       qu'une page sans intérêt pour l'utilisateur. -->
   <TemplateURL>https://raw.githubusercontent.com/flamme-demon/buzz-all-in-one-unraid/main/templates/buzz-aio.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/flamme-demon/buzz-all-in-one-unraid/main/README.md</ReadMe>
   <Icon>https://raw.githubusercontent.com/block/buzz/main/desktop/src-tauri/icons/128x128@2x.png</Icon>

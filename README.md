@@ -50,9 +50,13 @@ Otherwise, create the container by hand using the settings table below.
 
 ### 4. Start it
 
-The first start initialises the Postgres cluster, generates secrets and runs the migrations: expect one to two minutes. The web UI then answers on `http://<unraid-ip>:3000/index.html`, and Buzz desktop clients connect over WebSocket at the same address.
+The first start initialises the Postgres cluster, generates secrets and runs the migrations: expect one to two minutes. The relay is ready once the logs show `buzz-relay TCP listening`.
 
-> The URL does end in `/index.html`: current relay versions serve the web bundle from that route and `/assets/*`, but answer 404 on the bare root. The Unraid template points the *WebUI* button there accordingly.
+### 5. Connect
+
+**Buzz has no web client.** Download the desktop app from the [project releases](https://github.com/block/buzz/releases) — `.AppImage` or `.deb` for Linux, `.dmg` for macOS, `.exe` for Windows — then point it at `ws://<unraid-ip>:3000`. A Flutter mobile client is in development upstream.
+
+The web bundle the relay serves is not a replacement: it covers invite pages and a git repository browser only. The template therefore deliberately defines no *WebUI* button.
 
 ## Settings
 

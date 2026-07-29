@@ -50,9 +50,13 @@ Copiez [`templates/buzz-aio.xml`](templates/buzz-aio.xml) dans `/boot/config/plu
 
 ### 4. Démarrer
 
-Le premier démarrage initialise le cluster Postgres, génère les secrets et applique les migrations : comptez une à deux minutes. Ensuite, l'interface web répond sur `http://<ip-unraid>:3000/index.html`, et les clients desktop Buzz se connectent en WebSocket sur la même adresse.
+Le premier démarrage initialise le cluster Postgres, génère les secrets et applique les migrations : comptez une à deux minutes. Le relay est prêt quand les journaux affichent `buzz-relay TCP listening`.
 
-> L'URL se termine bien par `/index.html` : les versions actuelles du relay servent le bundle web sur cette route et sur `/assets/*`, mais répondent 404 sur la racine nue. Le template Unraid pointe donc le bouton *WebUI* dessus.
+### 5. Se connecter
+
+**Buzz n'a pas de client web.** Téléchargez l'application desktop depuis les [releases du projet](https://github.com/block/buzz/releases) — `.AppImage` ou `.deb` pour Linux, `.dmg` pour macOS, `.exe` pour Windows — puis pointez-la sur `ws://<ip-unraid>:3000`. Un client mobile Flutter est en développement chez l'amont.
+
+Le bundle web servi par le relay ne remplace pas ce client : il se limite aux pages d'invitation et à un navigateur de dépôts git. Le template ne définit donc volontairement pas de bouton *WebUI*.
 
 ## Réglages
 

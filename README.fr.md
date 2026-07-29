@@ -23,20 +23,20 @@ Les binaires du relay ne sont pas recompilés : ils sont repris tels quels de l'
 L'image est publiée par la CI de ce dépôt :
 
 ```
-ghcr.io/<votre-compte>/buzz-all-in-one-unraid:latest
+ghcr.io/flamme-demon/buzz-all-in-one-unraid:latest
 ```
 
 Pour la construire vous-même, depuis un terminal Unraid :
 
 ```bash
-git clone https://github.com/<votre-compte>/buzz-all-in-one-unraid.git
+git clone https://github.com/flamme-demon/buzz-all-in-one-unraid.git
 cd buzz-all-in-one-unraid
 ./build.sh
 ```
 
 ### 2. Ajouter le conteneur
 
-Copiez [`unraid/buzz-aio.xml`](unraid/buzz-aio.xml) dans `/boot/config/plugins/dockerMan/templates-user/`, puis, dans l'onglet **Docker** d'Unraid, *Add Container* → sélectionnez `buzz-aio` dans la liste des templates utilisateur.
+Copiez [`templates/buzz-aio.xml`](templates/buzz-aio.xml) dans `/boot/config/plugins/dockerMan/templates-user/`, puis, dans l'onglet **Docker** d'Unraid, *Add Container* → sélectionnez `buzz-aio` dans la liste des templates utilisateur.
 
 À défaut, créez le conteneur à la main avec les réglages du tableau ci-dessous.
 

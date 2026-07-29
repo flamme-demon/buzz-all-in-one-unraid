@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>buzz-aio</Name>
-  <Repository>local/buzz-aio:latest</Repository>
-  <Registry>https://github.com/block/buzz</Registry>
+  <Repository>ghcr.io/flamme-demon/buzz-all-in-one-unraid:latest</Repository>
+  <Registry>https://ghcr.io/flamme-demon/buzz-all-in-one-unraid</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/block/buzz/issues</Support>
+  <Support>https://github.com/flamme-demon/buzz-all-in-one-unraid/issues</Support>
   <Project>https://github.com/block/buzz</Project>
   <Overview>
     Buzz all-in-one : le relay Buzz de Block (espace de travail auto-hébergé où humains et agents IA collaborent dans des salons partagés, bâti sur Nostr) avec Postgres, Redis et MinIO embarqués dans un seul conteneur.
@@ -23,8 +23,9 @@
   <Category>Productivity: Network:Messenger Tools:</Category>
   <!-- Le relay sert le bundle web sur /index.html ; la racine nue répond 404. -->
   <WebUI>http://[IP]:[PORT:3000]/index.html</WebUI>
-  <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/block/buzz/main/web/public/favicon.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/flamme-demon/buzz-all-in-one-unraid/main/templates/buzz-aio.xml</TemplateURL>
+  <ReadMe>https://raw.githubusercontent.com/flamme-demon/buzz-all-in-one-unraid/main/README.md</ReadMe>
+  <Icon>https://raw.githubusercontent.com/block/buzz/main/desktop/src-tauri/icons/128x128@2x.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>

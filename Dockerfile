@@ -36,9 +36,12 @@ ARG MINIO_VERSION=RELEASE.2025-09-07T16-13-09Z
 ARG MC_VERSION=RELEASE.2025-08-13T08-35-41Z
 ARG PG_MAJOR=17
 
+# image.source doit désigner CE dépôt : c'est lui que GHCR lie au package et
+# dont il reprend la visibilité. Le projet empaqueté est signalé à part.
 LABEL org.opencontainers.image.title="Buzz all-in-one" \
       org.opencontainers.image.description="Relay Buzz + Postgres + Redis + MinIO dans un seul conteneur, pour Unraid" \
-      org.opencontainers.image.source="https://github.com/block/buzz" \
+      org.opencontainers.image.source="https://github.com/flamme-demon/buzz-all-in-one-unraid" \
+      org.opencontainers.image.url="https://github.com/block/buzz" \
       org.opencontainers.image.licenses="Apache-2.0"
 
 ENV DEBIAN_FRONTEND=noninteractive \

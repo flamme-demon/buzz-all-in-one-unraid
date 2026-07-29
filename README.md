@@ -36,7 +36,7 @@ cd buzz-all-in-one-unraid
 
 ### 2. Add the container
 
-Copy [`unraid/buzz-aio.xml`](unraid/buzz-aio.xml) into `/boot/config/plugins/dockerMan/templates-user/`, then, in Unraid's **Docker** tab, *Add Container* → pick `buzz-aio` from the user templates list.
+Copy [`templates/buzz-aio.xml`](templates/buzz-aio.xml) into `/boot/config/plugins/dockerMan/templates-user/`, then, in Unraid's **Docker** tab, *Add Container* → pick `buzz-aio` from the user templates list.
 
 Otherwise, create the container by hand using the settings table below.
 

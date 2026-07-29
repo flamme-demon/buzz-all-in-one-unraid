@@ -1,0 +1,13 @@
+<CommunityApplications>
+  <Profile>
+    Empaquetage Unraid de [Buzz](https://github.com/block/buzz), l'espace de travail auto-hébergé de Block où humains et agents IA collaborent dans des salons partagés, bâti sur Nostr.
+
+    Le relay Buzz a besoin de PostgreSQL, Redis et d'un stockage S3. Ce dépôt les réunit avec le relay dans **un seul conteneur**, pour tenir dans le modèle « une application, un conteneur » d'Unraid.
+
+    Les binaires du relay sont repris tels quels de l'image officielle publiée par Block, épinglée par digest. Une veille quotidienne suit les versions amont et ne publie une nouvelle image qu'après l'avoir démarrée avec succès.
+
+    Support : https://github.com/flamme-demon/buzz-all-in-one-unraid/issues
+  </Profile>
+  <Icon>https://raw.githubusercontent.com/block/buzz/main/desktop/src-tauri/icons/128x128@2x.png</Icon>
+  <WebPage>https://github.com/flamme-demon/buzz-all-in-one-unraid</WebPage>
+</CommunityApplications>

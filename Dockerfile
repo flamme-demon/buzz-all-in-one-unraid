@@ -26,14 +26,24 @@ ARG BUZZ_REF=ghcr.io/block/buzz:latest
 # donc contre une glibc plus ancienne — ils tournent sans souci ici.
 ARG DEBIAN_VERSION=trixie
 
+# MinIO (serveur S3) et mc (client, utilisé pour créer le bucket au premier
+# démarrage). Les deux projets open source de MinIO sont archivés et dl.min.io
+# ne sert plus aucun binaire : les binaires sont donc copiés depuis leurs
+# images officielles quay.io, épinglées par digest — ce sont exactement les
+# références du profil quickstart du chart Helm officiel de Buzz. Contrairement
+# aux hotfixs, ces images restent multi-arch (arm64 compris), pour un build
+# local hors CI.
+ARG MINIO_IMAGE=quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+ARG MC_IMAGE=quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+
 FROM ${BUZZ_REF} AS buzz-upstream
+FROM ${MINIO_IMAGE} AS minio-upstream
+FROM ${MC_IMAGE} AS mc-upstream
 
 # ─── Runtime ────────────────────────────────────────────────────────────────
 FROM debian:${DEBIAN_VERSION}-slim
 
 ARG S6_OVERLAY_VERSION=3.2.3.2
-ARG MINIO_VERSION=RELEASE.2025-09-07T16-13-09Z
-ARG MC_VERSION=RELEASE.2025-08-13T08-35-41Z
 ARG PG_MAJOR=17
 
 # image.source doit désigner CE dépôt : c'est lui que GHCR lie au package et
@@ -75,19 +85,12 @@ RUN set -eux; \
     tar -C / -Jxpf "s6-overlay-${S6_ARCH}.tar.xz"; \
     rm -f /tmp/s6-overlay-*.tar.xz
 
-# MinIO (serveur S3) + mc (client, utilisé pour créer le bucket au 1er
-# démarrage). Versions épinglées sur celles que le chart Helm officiel de Buzz
-# utilise pour son profil quickstart.
-RUN set -eux; \
-    case "$(dpkg --print-architecture)" in \
-        amd64) MINIO_ARCH=amd64 ;; \
-        arm64) MINIO_ARCH=arm64 ;; \
-    esac; \
-    curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 30 -o /usr/local/bin/minio \
-        "https://dl.min.io/server/minio/release/linux-${MINIO_ARCH}/archive/minio.${MINIO_VERSION}"; \
-    curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 30 -o /usr/local/bin/mc \
-        "https://dl.min.io/client/mc/release/linux-${MINIO_ARCH}/archive/mc.${MC_VERSION}"; \
-    chmod 0755 /usr/local/bin/minio /usr/local/bin/mc
+# Binaires MinIO + mc, copiés depuis leurs images officielles (voir les ARG en
+# tête de fichier) : plus rien n'est téléchargé, dl.min.io ne servant plus
+# aucun binaire depuis l'archivage des projets.
+COPY --from=minio-upstream /usr/bin/minio /usr/local/bin/minio
+COPY --from=mc-upstream /usr/bin/mc /usr/local/bin/mc
+RUN chmod 0755 /usr/local/bin/minio /usr/local/bin/mc
 
 # Binaires + bundles web de l'image officielle Buzz. Les répertoires sont copiés
 # en entier plutôt que fichier par fichier : leur contenu varie selon la version

@@ -105,7 +105,9 @@ Tout vit sous `/config` (par défaut `/mnt/user/appdata/buzz`) :
 `versions.env` est la source de vérité de tout ce qui est embarqué. Le workflow [`watch-upstream.yml`](.github/workflows/watch-upstream.yml) le vérifie chaque jour et met à jour, le cas échéant :
 
 - le digest de `ghcr.io/block/buzz:latest` (le relay lui-même) ;
-- s6-overlay, MinIO et le client `mc`.
+- s6-overlay.
+
+MinIO et le client `mc` ne sont plus surveillés : les projets amont sont archivés et `dl.min.io`, qui les distribuait, ne sert plus aucun binaire. Leurs binaires sont copiés depuis les images officielles quay.io épinglées par digest (les mêmes que le profil quickstart du chart Helm de Buzz) et restent donc figés tant que l'implémentation S3 ne change pas.
 
 Un changement est commité sur `main`, ce qui relance [`build.yml`](.github/workflows/build.yml). Celui-ci **démarre l'image et attend que `/_readiness` passe au vert avant de publier** : une version amont qui ne démarre pas avec cette pile bloque la publication au lieu de casser les installations. Une reconstruction hebdomadaire récupère par ailleurs les correctifs de sécurité Debian.
 

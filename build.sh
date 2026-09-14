@@ -22,8 +22,8 @@ IMAGE="${IMAGE:-local/buzz-aio}"
 docker build \
     --build-arg "BUZZ_REF=${BUZZ_REF}" \
     --build-arg "S6_OVERLAY_VERSION=${S6_OVERLAY_VERSION}" \
-    --build-arg "MINIO_VERSION=${MINIO_VERSION}" \
-    --build-arg "MC_VERSION=${MC_VERSION}" \
+    --build-arg "MINIO_IMAGE=${MINIO_IMAGE}" \
+    --build-arg "MC_IMAGE=${MC_IMAGE}" \
     --build-arg "PG_MAJOR=${PG_MAJOR}" \
     --tag "${IMAGE}:latest" \
     --tag "${IMAGE}:${BUZZ_TAG}" \

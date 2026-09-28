@@ -17,9 +17,11 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Version épinglée plutôt que ubuntu-latest : le changement d'image du
+    # runner se fait quand on l'a validé, pas au gré de GitHub.
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Relever les versions publiées
         id: upstream

@@ -27,18 +27,50 @@ ARG BUZZ_REF=ghcr.io/block/buzz:latest
 ARG DEBIAN_VERSION=trixie
 
 # MinIO (serveur S3) et mc (client, utilisé pour créer le bucket au premier
-# démarrage). Les deux projets open source de MinIO sont archivés et dl.min.io
-# ne sert plus aucun binaire : les binaires sont donc copiés depuis leurs
-# images officielles quay.io, épinglées par digest — ce sont exactement les
-# références du profil quickstart du chart Helm officiel de Buzz. Contrairement
-# aux hotfixs, ces images restent multi-arch (arm64 compris), pour un build
-# local hors CI.
-ARG MINIO_IMAGE=quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
-ARG MC_IMAGE=quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+# démarrage). MinIO a cessé toute distribution binaire de ses projets open
+# source, désormais archivés : dl.min.io ne sert plus rien et les images
+# quay.io/minio/* ne sont plus accessibles anonymement. Seul le code source
+# reste publié ; les deux binaires sont donc compilés ici, au tag de release
+# indiqué, dont le commit est vérifié pour qu'un tag déplacé fasse échouer le
+# build. Ce sont les versions du profil quickstart du chart Helm officiel de
+# Buzz.
+ARG MINIO_VERSION=RELEASE.2025-09-07T16-13-09Z
+ARG MINIO_COMMIT=07c3a429bfed433e49018cb0f78a52145d4bedeb
+ARG MC_VERSION=RELEASE.2025-08-13T08-35-41Z
+ARG MC_COMMIT=7394ce0dd2a80935aded936b09fa12cbb3cb8096
+# Chaîne de compilation Go de MinIO et mc.
+ARG GO_VERSION=1.27
 
 FROM ${BUZZ_REF} AS buzz-upstream
-FROM ${MINIO_IMAGE} AS minio-upstream
-FROM ${MC_IMAGE} AS mc-upstream
+
+# ─── MinIO + mc, compilés depuis les sources ────────────────────────────────
+# Même commande que le Makefile amont, ldflags de version compris. Go pur (CGO
+# désactivé) compilé en croisé sur la plateforme de build : un build arm64 ne
+# passe pas par l'émulation QEMU. gen-ldflags attend l'horodatage du tag au
+# format RFC 3339 (RELEASE.2025-09-07T16-13-09Z → 2025-09-07T16:13:09Z).
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-${DEBIAN_VERSION} AS minio-build
+ARG TARGETOS TARGETARCH MINIO_VERSION MINIO_COMMIT
+RUN set -eux; \
+    git clone --quiet --depth 1 --branch "${MINIO_VERSION}" https://github.com/minio/minio.git /src; \
+    cd /src; \
+    [ "$(git rev-parse HEAD)" = "${MINIO_COMMIT}" ] \
+        || { echo "${MINIO_VERSION} ne pointe plus sur ${MINIO_COMMIT}" >&2; exit 1; }; \
+    v="${MINIO_VERSION#RELEASE.}"; \
+    ldflags="$(MINIO_RELEASE=RELEASE go run buildscripts/gen-ldflags.go "${v%%T*}T$(echo "${v#*T}" | tr - :)")"; \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
+        go build -tags kqueue -trimpath -ldflags "${ldflags}" -o /out/minio .
+
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-${DEBIAN_VERSION} AS mc-build
+ARG TARGETOS TARGETARCH MC_VERSION MC_COMMIT
+RUN set -eux; \
+    git clone --quiet --depth 1 --branch "${MC_VERSION}" https://github.com/minio/mc.git /src; \
+    cd /src; \
+    [ "$(git rev-parse HEAD)" = "${MC_COMMIT}" ] \
+        || { echo "${MC_VERSION} ne pointe plus sur ${MC_COMMIT}" >&2; exit 1; }; \
+    v="${MC_VERSION#RELEASE.}"; \
+    ldflags="$(MC_RELEASE=RELEASE go run buildscripts/gen-ldflags.go "${v%%T*}T$(echo "${v#*T}" | tr - :)")"; \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
+        go build -tags kqueue -trimpath -ldflags "${ldflags}" -o /out/mc .
 
 # ─── Runtime ────────────────────────────────────────────────────────────────
 FROM debian:${DEBIAN_VERSION}-slim
@@ -85,12 +117,10 @@ RUN set -eux; \
     tar -C / -Jxpf "s6-overlay-${S6_ARCH}.tar.xz"; \
     rm -f /tmp/s6-overlay-*.tar.xz
 
-# Binaires MinIO + mc, copiés depuis leurs images officielles (voir les ARG en
-# tête de fichier) : plus rien n'est téléchargé, dl.min.io ne servant plus
-# aucun binaire depuis l'archivage des projets.
-COPY --from=minio-upstream /usr/bin/minio /usr/local/bin/minio
-COPY --from=mc-upstream /usr/bin/mc /usr/local/bin/mc
-RUN chmod 0755 /usr/local/bin/minio /usr/local/bin/mc
+# Binaires MinIO + mc compilés plus haut (voir les ARG en tête de fichier).
+# --chmod plutôt qu'un RUN chmod, qui dupliquerait ~140 Mo dans une couche.
+COPY --from=minio-build --chmod=0755 /out/minio /usr/local/bin/minio
+COPY --from=mc-build --chmod=0755 /out/mc /usr/local/bin/mc
 
 # Binaires + bundles web de l'image officielle Buzz. Les répertoires sont copiés
 # en entier plutôt que fichier par fichier : leur contenu varie selon la version

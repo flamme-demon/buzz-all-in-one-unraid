@@ -50,8 +50,10 @@ jobs:
           build-args: |
             BUZZ_REF=${{ env.BUZZ_REF }}
             S6_OVERLAY_VERSION=${{ env.S6_OVERLAY_VERSION }}
-            MINIO_IMAGE=${{ env.MINIO_IMAGE }}
-            MC_IMAGE=${{ env.MC_IMAGE }}
+            MINIO_VERSION=${{ env.MINIO_VERSION }}
+            MINIO_COMMIT=${{ env.MINIO_COMMIT }}
+            MC_VERSION=${{ env.MC_VERSION }}
+            MC_COMMIT=${{ env.MC_COMMIT }}
             PG_MAJOR=${{ env.PG_MAJOR }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -84,8 +86,10 @@ jobs:
           build-args: |
             BUZZ_REF=${{ env.BUZZ_REF }}
             S6_OVERLAY_VERSION=${{ env.S6_OVERLAY_VERSION }}
-            MINIO_IMAGE=${{ env.MINIO_IMAGE }}
-            MC_IMAGE=${{ env.MC_IMAGE }}
+            MINIO_VERSION=${{ env.MINIO_VERSION }}
+            MINIO_COMMIT=${{ env.MINIO_COMMIT }}
+            MC_VERSION=${{ env.MC_VERSION }}
+            MC_COMMIT=${{ env.MC_COMMIT }}
             PG_MAJOR=${{ env.PG_MAJOR }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

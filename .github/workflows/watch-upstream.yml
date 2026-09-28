@@ -71,10 +71,10 @@ jobs:
           fi
 
           # ── MinIO + mc ────────────────────────────────────────────────────
-          # Projets archivés en amont, et dl.min.io, qui les distribuait, ne
-          # sert plus aucun binaire. Les binaires sont désormais copiés depuis
-          # les images quay.io épinglées par digest dans versions.env (voir
-          # Dockerfile) : figés, donc rien à surveiller ici.
+          # Projets archivés en amont, sans plus aucune distribution binaire
+          # (ni dl.min.io, ni images quay.io). Les binaires sont compilés
+          # depuis les sources, au tag et au commit épinglés dans versions.env
+          # (voir Dockerfile) : figés, donc rien à surveiller ici.
 
       - name: Mettre à jour versions.env
         id: bump
